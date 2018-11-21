@@ -1,1 +1,1 @@
-include ':app', ':msc'
+include ':app', ':msc', ':rxmsc', ':rxaudio'
