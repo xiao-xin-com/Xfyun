@@ -39,35 +39,49 @@ private class RxMediaPlayerListener(
     }
 }
 
-private fun setMediaPlayer(context: Context, emitter: CompletableEmitter, mp: MediaPlayer?) {
-    fun emitter(block: CompletableEmitter.() -> Unit) = emitter.emitter(block)
+private fun setMediaPlayer(
+    context: Context,
+    emitter: CompletableEmitter,
+    mp: MediaPlayer?,
+    handleFocus: Boolean
+) {
     if (mp == null) {
         emitter.onError(CreateException())
         return
     }
+    if (emitter.isDisposed) {
+        return
+    }
 
     val listener = RxMediaPlayerListener(emitter)
+    if (handleFocus) {
+        handleFocus(context, mp, emitter)
+    }
+    mp.setOnCompletionListener(listener)
+    mp.setOnErrorListener(listener)
+    mp.start()
+}
 
+private fun handleFocus(context: Context, mp: MediaPlayer, emitter: CompletableEmitter) {
     val audioManager = context.applicationContext
         .getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-    val focusChangeListener: (Int) -> Unit = { focusChange: Int ->
-        when (focusChange) {
-            AudioManager.AUDIOFOCUS_GAIN,
-            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
-            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
-            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE -> emitter {
-                mp.takeUnless { it.isPlaying }?.start()
-            }
-            AudioManager.AUDIOFOCUS_LOSS -> emitter {
-                listener.onCompletion(mp)
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> emitter {
-                mp.takeIf { it.isPlaying }?.pause()
+    val focusChangeListener =
+        AudioManager.OnAudioFocusChangeListener { focusChange: Int ->
+            when (focusChange) {
+                AudioManager.AUDIOFOCUS_GAIN,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE -> emitter.emitter {
+                    mp.takeUnless { it.isPlaying }?.start()
+                }
+                AudioManager.AUDIOFOCUS_LOSS -> emitter.onComplete()
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> emitter.emitter {
+                    mp.takeIf { it.isPlaying }?.pause()
+                }
             }
         }
-    }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val audioFocusRequest =
@@ -87,77 +101,95 @@ private fun setMediaPlayer(context: Context, emitter: CompletableEmitter, mp: Me
         } else {
             AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
         }
-        audioManager.requestAudioFocus(focusChangeListener, -1, durationHint)
+        audioManager.requestAudioFocus(
+            focusChangeListener,
+            AudioManager.USE_DEFAULT_STREAM_TYPE,
+            durationHint
+        )
         emitter.setCancellable {
             mp.release()
             audioManager.abandonAudioFocus(focusChangeListener)
-        }
-    }
-
-    with(mp) {
-        emitter {
-            setOnCompletionListener(listener)
-            setOnErrorListener(listener)
-            start()
         }
     }
 }
 
 class CreateException : NullPointerException()
 
-fun Context.startPlay(@RawRes resId: Int): Completable {
+@JvmOverloads
+fun Context.startPlay(@RawRes resId: Int, handleFocus: Boolean = true): Completable {
     return Completable.create { emitter ->
         val ctx: Context = applicationContext
-        setMediaPlayer(ctx, emitter, MediaPlayer.create(ctx, resId))
+        setMediaPlayer(ctx, emitter, MediaPlayer.create(ctx, resId), handleFocus)
     }.subscribeOn(Schedulers.io())
 }
 
+@JvmOverloads
 @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 fun Context.startPlay(
     @RawRes resId: Int,
     audioAttributes: AudioAttributes?,
-    audioSessionId: Int
+    audioSessionId: Int,
+    handleFocus: Boolean = true
 ): Completable {
     return Completable.create { emitter ->
         val ctx: Context = applicationContext
         val mp: MediaPlayer? = MediaPlayer.create(ctx, resId, audioAttributes, audioSessionId)
-        setMediaPlayer(ctx, emitter, mp)
+        setMediaPlayer(ctx, emitter, mp, handleFocus)
     }.subscribeOn(Schedulers.io())
 }
 
-fun Context.startPlay(uri: Uri): Completable {
+@JvmOverloads
+fun Context.startPlay(uri: Uri, handleFocus: Boolean = true): Completable {
     return Completable.create { emitter ->
         val ctx: Context = applicationContext
-        setMediaPlayer(ctx, emitter, MediaPlayer.create(ctx, uri))
+        setMediaPlayer(ctx, emitter, MediaPlayer.create(ctx, uri), handleFocus)
     }.subscribeOn(Schedulers.io())
 }
 
-fun Context.startPlay(uri: Uri, holder: SurfaceHolder?): Completable {
+@JvmOverloads
+fun Context.startPlay(uri: Uri, holder: SurfaceHolder?, handleFocus: Boolean = true): Completable {
     return Completable.create { emitter ->
         val ctx: Context = applicationContext
-        setMediaPlayer(ctx, emitter, MediaPlayer.create(ctx, uri, holder))
+        setMediaPlayer(ctx, emitter, MediaPlayer.create(ctx, uri, holder), handleFocus)
     }.subscribeOn(Schedulers.io())
 }
 
+@JvmOverloads
 @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 fun Context.startPlay(
     uri: Uri,
     holder: SurfaceHolder?,
     audioAttributes: AudioAttributes?,
-    audioSessionId: Int
+    audioSessionId: Int,
+    handleFocus: Boolean = true
 ): Completable {
     return Completable.create { emitter ->
         val ctx: Context = applicationContext
         val mp: MediaPlayer? = MediaPlayer.create(ctx, uri, holder, audioAttributes, audioSessionId)
-        setMediaPlayer(ctx, emitter, mp)
+        setMediaPlayer(ctx, emitter, mp, handleFocus)
     }.subscribeOn(Schedulers.io())
+}
+
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun Context.requestAudioFocus(focusRequest: AudioFocusRequest): CompletableTransformer {
+    return CompletableTransformer trans@{ t ->
+        val audioManager = applicationContext
+            .getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return@trans t
+        return@trans t.doOnSubscribe {
+            audioManager.requestAudioFocus(focusRequest)
+        }.doFinally {
+            audioManager.abandonAudioFocusRequest(focusRequest)
+        }
+    }
 }
 
 @JvmOverloads
 fun Context.requestAudioFocus(
     streamType: Int,
     durationHint: Int,
-    listener: (Int) -> Unit = { }
+    listener: AudioManager.OnAudioFocusChangeListener =
+        AudioManager.OnAudioFocusChangeListener { }
 ): CompletableTransformer {
     return CompletableTransformer trans@{ t ->
         val audioManager = applicationContext
@@ -166,7 +198,6 @@ fun Context.requestAudioFocus(
         return@trans if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val audioAttributes = AudioAttributes.Builder()
                 .setLegacyStreamType(streamType)
-                .setUsage(AudioAttributes.USAGE_MEDIA)
                 .build()
 
             val focusRequest = AudioFocusRequest.Builder(durationHint)
