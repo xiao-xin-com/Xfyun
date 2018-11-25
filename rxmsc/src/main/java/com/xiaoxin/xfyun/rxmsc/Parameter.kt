@@ -1,3 +1,5 @@
+@file:JvmName("MscParameter")
+
 package com.xiaoxin.xfyun.rxmsc
 
 import android.content.Context
@@ -7,7 +9,7 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 
-class Parameter(
+private class Parameter(
     private val context: Context,
     private val name: String
 ) {
@@ -61,28 +63,45 @@ class Parameter(
 }
 
 
-object SynthesizerParameter {
-    private val parameter by lazy { Parameter(RxMsc.context, "SynthesizerParameter") }
-    @JvmStatic
+class SynthesizerParameter private constructor(context: Context) {
+    private val parameter by lazy { Parameter(context.applicationContext, "SynthesizerParameter") }
     var voiceName by parameter.String(SpeechConstant.VOICE_NAME, "xiaoyan")
-    @JvmStatic
+
     var engineType by parameter.String(SpeechConstant.ENGINE_TYPE, SpeechConstant.TYPE_CLOUD)
-    @JvmStatic
+
     var speed by parameter.Int(SpeechConstant.SPEED, 50)
-    @JvmStatic
+
     var pitch by parameter.Int(SpeechConstant.PITCH, 50)
-    @JvmStatic
+
     var volume by parameter.Int(SpeechConstant.VOICE_NAME, 50)
-    @JvmStatic
+
     var ttsDataNotify by parameter.String(SpeechConstant.TTS_DATA_NOTIFY, "1")
-    @JvmStatic
+
     var params by parameter.String(SpeechConstant.PARAMS, null)
-    @JvmStatic
+
     var streamType by parameter.Int(SpeechConstant.STREAM_TYPE, AudioManager.STREAM_MUSIC)
-    @JvmStatic
+
     var ttsAudioPath by parameter.String(SpeechConstant.TTS_AUDIO_PATH, null)
-    @JvmStatic
+
     var audioFormat by parameter.String(SpeechConstant.AUDIO_FORMAT, "pcm")
-    @JvmStatic
+
     var keyRequestFocus by parameter.Boolean(SpeechConstant.KEY_REQUEST_FOCUS, true)
+
+    companion object {
+        private lateinit var instance: SynthesizerParameter
+        @JvmStatic
+        fun getSynthesizerParameter(context: Context): SynthesizerParameter {
+            if (!this::instance.isInitialized) {
+                synchronized(Companion::class.java) {
+                    if (!this::instance.isInitialized) {
+                        instance = SynthesizerParameter(context.applicationContext)
+                    }
+                }
+            }
+            return instance
+        }
+    }
 }
+
+fun Context.getSynthesizerParameter(): SynthesizerParameter =
+    SynthesizerParameter.getSynthesizerParameter(this)

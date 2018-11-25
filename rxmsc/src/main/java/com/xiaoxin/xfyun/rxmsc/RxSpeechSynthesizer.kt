@@ -2,14 +2,14 @@
 
 package com.xiaoxin.xfyun.rxmsc
 
+import android.content.Context
 import android.os.Bundle
 import com.iflytek.cloud.*
 import io.reactivex.*
-import io.reactivex.plugins.RxJavaPlugins
 
 
-private fun setParam(mTts: SpeechSynthesizer) {
-    with(SynthesizerParameter) {
+private fun setParam(context: Context, mTts: SpeechSynthesizer) {
+    with(context.getSynthesizerParameter()) {
         // 清空参数
         mTts.setParameter(SpeechConstant.PARAMS, params)
         // 根据合成引擎设置相应参数
@@ -48,13 +48,13 @@ private class RxInitListener(
     }
 }
 
-private fun createSynthesizer(): Single<Int> {
+fun Context.createSynthesizer(): Single<Int> {
     return Single.create<Int> { emitter ->
-        SpeechSynthesizer.createSynthesizer(RxMsc.context, RxInitListener(emitter))
+        SpeechSynthesizer.createSynthesizer(applicationContext, RxInitListener(emitter))
     }
 }
 
-fun getSynthesizer(): Single<SpeechSynthesizer> {
+fun Context.getSynthesizer(): Single<SpeechSynthesizer> {
     val synthesizer = SpeechSynthesizer.getSynthesizer()
     return if (synthesizer != null) {
         Single.just(synthesizer)
@@ -63,8 +63,8 @@ fun getSynthesizer(): Single<SpeechSynthesizer> {
     }
 }
 
-fun startSpeaking(text: String): Observable<SpeakEvent> {
-    return getSynthesizer().doOnSuccess { setParam(it) }
+fun Context.startSpeaking(text: String): Observable<SpeakEvent> {
+    return getSynthesizer().doOnSuccess { setParam(this@startSpeaking, it) }
         .flatMapObservable { tts ->
             Observable.create<SpeakEvent> { emitter ->
                 emitter.setCancellable { tts.stopSpeaking() }
@@ -75,7 +75,7 @@ fun startSpeaking(text: String): Observable<SpeakEvent> {
         }
 }
 
-fun speak(text: String): Completable {
+fun Context.speak(text: String): Completable {
     return startSpeaking(text).ignoreElements()
 }
 
@@ -91,29 +91,19 @@ private class RxSynthesizerListener(
     override fun onBufferProgress(percent: Int, beginPos: Int, endPos: Int, info: String?) = Unit
     override fun onEvent(eventType: Int, arg1: Int, arg2: Int, bundle: Bundle?) = Unit
 
-    override fun onSpeakBegin() {
-        emitter.takeUnless { it.isDisposed }?.onNext(SpeakEvent.ON_BEGIN)
-    }
+    override fun onSpeakBegin() = emitter.onNext(SpeakEvent.ON_BEGIN)
 
-    override fun onSpeakPaused() {
-        emitter.takeUnless { it.isDisposed }?.onNext(SpeakEvent.ON_PAUSED)
-    }
+    override fun onSpeakPaused() = emitter.onNext(SpeakEvent.ON_PAUSED)
 
-    override fun onSpeakResumed() {
-        emitter.takeUnless { it.isDisposed }?.onNext(SpeakEvent.ON_RESUMED)
-    }
+    override fun onSpeakResumed() = emitter.onNext(SpeakEvent.ON_RESUMED)
 
     override fun onCompleted(error: SpeechError?) {
-        if (!emitter.isDisposed) {
-            if (error != null) {
-                emitter.onNext(SpeakEvent.ON_ERROR)
-                emitter.onError(error)
-            } else {
-                emitter.onNext(SpeakEvent.ON_COMPLETED)
-                emitter.onComplete()
-            }
-        } else if (error != null) {
-            RxJavaPlugins.onError(error)
+        if (error != null) {
+            emitter.onNext(SpeakEvent.ON_ERROR)
+            emitter.onError(error)
+        } else {
+            emitter.onNext(SpeakEvent.ON_COMPLETED)
+            emitter.onComplete()
         }
     }
 }
