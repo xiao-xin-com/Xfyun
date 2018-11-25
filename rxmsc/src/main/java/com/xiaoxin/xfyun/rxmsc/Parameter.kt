@@ -88,17 +88,17 @@ class SynthesizerParameter private constructor(context: Context) {
     var keyRequestFocus by parameter.Boolean(SpeechConstant.KEY_REQUEST_FOCUS, true)
 
     companion object {
-        private lateinit var instance: SynthesizerParameter
+        private var instance: SynthesizerParameter? = null
         @JvmStatic
         fun getSynthesizerParameter(context: Context): SynthesizerParameter {
-            if (!this::instance.isInitialized) {
+            if (instance == null) {
                 synchronized(Companion::class.java) {
-                    if (!this::instance.isInitialized) {
+                    if (instance == null) {
                         instance = SynthesizerParameter(context.applicationContext)
                     }
                 }
             }
-            return instance
+            return instance!!
         }
     }
 }

@@ -44,7 +44,11 @@ private class RxInitListener(
     private val emitter: SingleEmitter<Int>
 ) : InitListener {
     override fun onInit(code: Int) {
-        emitter.takeUnless { it.isDisposed }?.onSuccess(code)
+        if (code == ErrorCode.SUCCESS) {
+            emitter.onSuccess(code)
+        } else {
+            emitter.onError(ErrorCodeException(code))
+        }
     }
 }
 
@@ -69,7 +73,10 @@ fun Context.startSpeaking(text: String): Observable<SpeakEvent> {
             Observable.create<SpeakEvent> { emitter ->
                 emitter.setCancellable { tts.stopSpeaking() }
                 emitter.takeUnless { it.isDisposed }?.apply {
-                    tts.startSpeaking(text, RxSynthesizerListener(emitter))
+                    val code = tts.startSpeaking(text, RxSynthesizerListener(emitter))
+                    if (code != ErrorCode.SUCCESS) {
+                        onError(ErrorCodeException(code))
+                    }
                 }
             }
         }
