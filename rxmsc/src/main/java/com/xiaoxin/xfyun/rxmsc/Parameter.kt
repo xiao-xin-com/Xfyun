@@ -73,7 +73,7 @@ class SynthesizerParameter private constructor(context: Context) {
 
     var pitch by parameter.Int(SpeechConstant.PITCH, 50)
 
-    var volume by parameter.Int(SpeechConstant.VOICE_NAME, 50)
+    var volume by parameter.Int(SpeechConstant.VOLUME, 50)
 
     var ttsDataNotify by parameter.String(SpeechConstant.TTS_DATA_NOTIFY, "1")
 
