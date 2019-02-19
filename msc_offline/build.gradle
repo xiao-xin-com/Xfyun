@@ -10,8 +10,8 @@ android {
     defaultConfig {
         minSdkVersion 16
         targetSdkVersion 28
-        versionCode 1133
-        versionName "2018年10月10日"
+        versionCode 1134
+        versionName "2019年01月18日-1134.2"
     }
 
     buildTypes {
