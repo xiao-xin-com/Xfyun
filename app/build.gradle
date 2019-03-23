@@ -13,6 +13,7 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        ndk { abiFilters "armeabi-v7a" }
     }
     buildTypes {
         release {
@@ -30,6 +31,7 @@ dependencies {
     implementation deps.rxjava2.rxjava
     implementation deps.rxjava2.rxandroid
     implementation project(':msc')
+    implementation project(':msc_offline')
     implementation project(':rxmsc')
     implementation project(':rxaudio')
     testImplementation deps.test.junit
