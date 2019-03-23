@@ -1,0 +1,41 @@
+def versions = [:]
+versions.android_gradle_plugin = '3.3.2'
+versions.kotlin = '1.3.21'
+versions.support = '28.0.0'
+
+ext.deps = [:]
+def android = [:]
+android.gradle_plugin = "com.android.tools.build:gradle:$versions.android_gradle_plugin"
+deps.android = android
+
+def kotlin = [:]
+kotlin.stdlib = "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$versions.kotlin"
+kotlin.gradle_plugin = "org.jetbrains.kotlin:kotlin-gradle-plugin:$versions.kotlin"
+kotlin.anko = "org.jetbrains.anko:anko:$versions.anko"
+deps.kotlin = kotlin
+
+def support = [:]
+support.appcompat = "com.android.support:appcompat-v7:$versions.support"
+support.constraint_layout = 'com.android.support.constraint:constraint-layout:1.1.3'
+deps.support = support
+
+def rxjava2 = [:]
+rxjava2.rxjava = 'io.reactivex.rxjava2:rxjava:2.2.7'
+rxjava2.rxandroid = 'io.reactivex.rxjava2:rxandroid:2.1.1'
+rxjava2.rxkotlin = 'io.reactivex.rxjava2:rxkotlin:2.3.0'
+
+deps.rxjava2 = rxjava2
+
+def test = [:]
+test.junit = 'junit:junit:4.12'
+test.runner = 'androidx.test:runner:1.1.2-alpha01'
+test.espresso_core = 'androidx.test.espresso:espresso-core:3.1.2-alpha01'
+deps.test = test
+
+def build_versions = [:]
+build_versions.compile_sdk = 28
+build_versions.build_tools = "28.0.3"
+build_versions.min_sdk = 16
+build_versions.target_sdk = 28
+ext.build_versions = build_versions
+

@@ -4,12 +4,12 @@ apply plugin: 'com.github.dcendents.android-maven'
 group = rootProject.ext.MAVEN_GROUP
 
 android {
-    compileSdkVersion compile_sdk_version
-    buildToolsVersion build_tools_version
+    compileSdkVersion build_versions.compile_sdk
+    buildToolsVersion build_versions.build_tools
 
     defaultConfig {
-        minSdkVersion 16
-        targetSdkVersion 28
+        minSdkVersion build_versions.min_sdk
+        targetSdkVersion build_versions.target_sdk
         versionCode 1134
         versionName "2019年01月18日-1134.2"
     }
