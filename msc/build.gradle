@@ -10,13 +10,13 @@ android {
     defaultConfig {
         minSdkVersion build_versions.min_sdk
         targetSdkVersion build_versions.target_sdk
-        versionCode 1134
-        versionName "2019年01月18日-1134.2"
+        versionCode 1135
+        versionName "2019年03月19日-1135"
         consumerProguardFiles 'proguard-rules.pro'
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
 
     }
-    
+
     buildTypes {
         release {
             minifyEnabled false

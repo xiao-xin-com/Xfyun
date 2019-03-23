@@ -5,18 +5,57 @@ package com.xiaoxin.xfyun.rxmsc
 import android.content.Context
 import android.os.Bundle
 import com.iflytek.cloud.*
+import com.iflytek.cloud.util.ResourceUtil
 import io.reactivex.*
+import java.util.concurrent.CancellationException
 
+//获取发音人资源路径
+//合成通用资源
+//发音人资源
+private fun Context.getResourcePath(voice: String): String {
+    return buildString {
+        append(
+            ResourceUtil.generateResourcePath(
+                this@getResourcePath,
+                ResourceUtil.RESOURCE_TYPE.assets, "tts/common.jet"
+            )
+        )
+        append(";")
+        append(
+            ResourceUtil.generateResourcePath(
+                this@getResourcePath,
+                ResourceUtil.RESOURCE_TYPE.assets,
+                "tts/$voice.jet"
+            )
+        )
+    }
+}
 
 private fun setParam(context: Context, mTts: SpeechSynthesizer) {
+
+
     with(context.getSynthesizerParameter()) {
         // 清空参数
         mTts.setParameter(SpeechConstant.PARAMS, params)
+        val engineType = engineType
+        val voiceName = voiceName
         // 根据合成引擎设置相应参数
         mTts.setParameter(SpeechConstant.ENGINE_TYPE, engineType)
-        mTts.setParameter(SpeechConstant.TTS_DATA_NOTIFY, ttsDataNotify)
         // 设置在线合成发音人
         mTts.setParameter(SpeechConstant.VOICE_NAME, voiceName)
+        if (engineType == SpeechConstant.TYPE_LOCAL) {
+            mTts.setParameter(SpeechConstant.ENGINE_TYPE, SpeechConstant.TYPE_LOCAL)
+            //本地合成不设置语速、音调、音量，默认使用语记设置
+            //开发者如需自定义参数，请参考在线合成参数设置
+            //设置发音人资源路径
+            mTts.setParameter(
+                ResourceUtil.TTS_RES_PATH,
+                context.getResourcePath(voiceName ?: "xiaoyan")
+            )
+        } else {
+            mTts.setParameter(SpeechConstant.ENGINE_TYPE, SpeechConstant.TYPE_CLOUD)
+        }
+        mTts.setParameter(SpeechConstant.TTS_DATA_NOTIFY, ttsDataNotify)
         //设置合成语速
         mTts.setParameter(SpeechConstant.SPEED, speed.toString())
         //设置合成音调
@@ -52,33 +91,40 @@ private class RxInitListener(
     }
 }
 
-fun Context.createSynthesizer(): Single<Int> {
+private fun Context.createSynthesizer(): Single<Int> {
     return Single.create<Int> { emitter ->
-        SpeechSynthesizer.createSynthesizer(applicationContext, RxInitListener(emitter))
+        SpeechSynthesizer.createSynthesizer(
+            applicationContext,
+            RxInitListener(emitter)
+        )
     }
 }
 
 fun Context.getSynthesizer(): Single<SpeechSynthesizer> {
-    val synthesizer = SpeechSynthesizer.getSynthesizer()
-    return if (synthesizer != null) {
-        Single.just(synthesizer)
-    } else {
-        createSynthesizer().map { SpeechSynthesizer.getSynthesizer() }
+    return Single.defer {
+        val synthesizer = SpeechSynthesizer.getSynthesizer()
+        return@defer if (synthesizer != null) {
+            Single.just(synthesizer)
+        } else {
+            createSynthesizer().map { SpeechSynthesizer.getSynthesizer() }
+        }
     }
 }
 
 fun Context.startSpeaking(text: String): Observable<SpeakEvent> {
     return getSynthesizer().doOnSuccess { setParam(this@startSpeaking, it) }
         .flatMapObservable { tts ->
-            Observable.create<SpeakEvent> { emitter ->
-                emitter.setCancellable { tts.stopSpeaking() }
-                emitter.takeUnless { it.isDisposed }?.apply {
-                    val code = tts.startSpeaking(text, RxSynthesizerListener(emitter))
-                    if (code != ErrorCode.SUCCESS) {
-                        onError(ErrorCodeException(code))
+            Observable.using({ tts }, { speechSynthesizer ->
+                Observable.create<SpeakEvent> { emitter ->
+                    emitter.takeUnless { it.isDisposed }?.apply {
+                        val code =
+                            speechSynthesizer.startSpeaking(text, RxSynthesizerListener(emitter))
+                        if (code != ErrorCode.SUCCESS) {
+                            onError(ErrorCodeException(code))
+                        }
                     }
                 }
-            }
+            }, { it.stopSpeaking() }, true)
         }
 }
 
@@ -96,13 +142,15 @@ private class RxSynthesizerListener(
 
     override fun onSpeakProgress(percent: Int, beginPos: Int, endPos: Int) = Unit
     override fun onBufferProgress(percent: Int, beginPos: Int, endPos: Int, info: String?) = Unit
-    override fun onEvent(eventType: Int, arg1: Int, arg2: Int, bundle: Bundle?) = Unit
-
     override fun onSpeakBegin() = emitter.onNext(SpeakEvent.ON_BEGIN)
-
     override fun onSpeakPaused() = emitter.onNext(SpeakEvent.ON_PAUSED)
-
     override fun onSpeakResumed() = emitter.onNext(SpeakEvent.ON_RESUMED)
+    override fun onEvent(eventType: Int, arg1: Int, arg2: Int, bundle: Bundle?) {
+        if (eventType == SpeechEvent.EVENT_TTS_CANCEL) {
+            emitter.onNext(SpeakEvent.ON_ERROR)
+            emitter.onError(CancellationException())
+        }
+    }
 
     override fun onCompleted(error: SpeechError?) {
         if (error != null) {
