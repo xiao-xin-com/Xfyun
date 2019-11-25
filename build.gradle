@@ -27,5 +27,5 @@ task clean(type: Delete) {
 }
 
 ext {
-    MAVEN_GROUP = 'com.github.mliyuanbiao'
+    MAVEN_GROUP = 'com.github.xiao-xin-com'
 }
