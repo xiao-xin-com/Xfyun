@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.support.annotation.RawRes
 import android.support.annotation.RequiresApi
+import android.util.Log
 import android.view.SurfaceHolder
 import io.reactivex.Completable
 import io.reactivex.CompletableEmitter
@@ -68,6 +69,7 @@ private fun handleFocus(context: Context, mp: MediaPlayer, emitter: CompletableE
 
     val focusChangeListener =
         AudioManager.OnAudioFocusChangeListener { focusChange: Int ->
+            Log.e("rxmediaplayer", "handleFocus: $focusChange" )
             when (focusChange) {
                 AudioManager.AUDIOFOCUS_GAIN,
                 AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
