@@ -78,7 +78,7 @@ private fun handleFocus(context: Context, mp: MediaPlayer, emitter: CompletableE
                 AudioManager.AUDIOFOCUS_LOSS -> emitter.onComplete()
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> emitter.emitter {
-                    mp.takeIf { it.isPlaying }?.pause()
+//                    mp.takeIf { it.isPlaying }?.pause()
                 }
             }
         }
