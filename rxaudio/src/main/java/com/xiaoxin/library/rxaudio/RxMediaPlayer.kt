@@ -69,7 +69,7 @@ private fun handleFocus(context: Context, mp: MediaPlayer, emitter: CompletableE
 
     val focusChangeListener =
         AudioManager.OnAudioFocusChangeListener { focusChange: Int ->
-            Log.e("rxmediaplayer", "handleFocus: $focusChange" )
+            Log.e("rxmediaplayers", "handleFocus: $focusChange" )
             when (focusChange) {
                 AudioManager.AUDIOFOCUS_GAIN,
                 AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
